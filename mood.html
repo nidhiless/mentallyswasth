@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Tracker</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background-color: #2f2f2f;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            border: 2px solid #00c8ff; /* Phone-like border */
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #00c8ff; /* Title color */
+        }
+
+        .emoji-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
+        .emoji {
+            font-size: 40px;
+            cursor: pointer;
+            transition: transform 0.2s; /* Smooth scaling effect */
+        }
+
+        .emoji:hover {
+            transform: scale(1.2);
+        }
+
+        button {
+            background-color: #555;
+            color: #e0e0e0;
+            padding: 12px 20px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s; /* Smooth background transition */
+        }
+
+        button:hover {
+            background-color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #444;
+            border-radius: 5px;
+            margin: 10px 0;
+            padding: 5px;
+        }
+
+        .progress {
+            width: 0;
+            height: 20px;
+            background-color: #4caf50;
+            border-radius: 5px;
+        }
+
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>How's your mood today?</h1>
+        <div class="emoji-row">
+            <span class="emoji" onclick="selectMood('😊')">😊</span>
+            <span class="emoji" onclick="selectMood('😐')">😐</span>
+            <span class="emoji" onclick="selectMood('😢')">😢</span>
+            <span class="emoji" onclick="selectMood('😡')">😡</span>
+            <span class="emoji" onclick="selectMood('😎')">😎</span>
+        </div>
+
+        <button onclick="trackMood()">Track My Mood</button>
+
+        <h2>Your mood history</h2>
+        <div id="progress-section">
+            <div class="progress-bar">
+                <div class="progress" id="progress-bar"></div>
+            </div>
+            <p id="mood-status">No mood tracked yet!</p>
+        </div>
+
+        <!-- Mood Chart -->
+        <canvas id="moodChart"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let currentMood = null;
+        let moodHistory = [];
+
+        function selectMood(mood) {
+            currentMood = mood;
+            document.querySelectorAll('.emoji').forEach(e => e.style.fontSize = '40px');
+            event.target.style.fontSize = '50px';
+        }
+
+        function trackMood() {
+            if (!currentMood) {
+                alert('Please select your mood!');
+                return;
+            }
+
+            document.getElementById('mood-status').textContent = `Current mood: ${currentMood}`;
+            updateProgress();
+            updateMoodHistory(currentMood);
+            updateChart();
+        }
+
+        function updateProgress() {
+            const progressBar = document.getElementById('progress-bar');
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                } else {
+                    width++;
+                    progressBar.style.width = width + '%';
+                }
+            }, 10);
+        }
+
+        function updateMoodHistory(mood) {
+            if (moodHistory.length >= 7) {
+                moodHistory.shift();  // Keep history to 7 days max
+            }
+            moodHistory.push({ mood, date: new Date().toLocaleDateString() });
+        }
+
+        function moodToNumeric(mood) {
+            const moodMap = {
+                '😊': 5,
+                '😎': 4,
+                '😐': 3,
+                '😢': 2,
+                '😡': 1
+            };
+            return moodMap[mood] || 0;
+        }
+
+        // Initialize Chart
+        const ctx = document.getElementById('moodChart').getContext('2d');
+        let moodChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Mood History',
+                    data: [],
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 5
+                    }
+                }
+            }
+        });
+
+        function updateChart() {
+            const labels = moodHistory.map(entry => entry.date);
+            const data = moodHistory.map(entry => moodToNumeric(entry.mood));
+
+            moodChart.data.labels = labels;
+            moodChart.data.datasets[0].data = data;
+            moodChart.update();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap" rel="stylesheet"> <!-- Link to Google Fonts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            font-family: 'Roboto', sans-serif; /* Updated font family */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            background-image: linear-gradient(to right, #1e1e1e, #2a2a2a);
+        }
+        .phone-screen {
+            background-color: #2f2f2f;
+            border-radius: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: 100%;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            font-size: 20px; /* Reduced heading font size */
+            margin: 0; /* Removed default margin */
+        }
+
+        .chat-container {
+            background-color: #2f2f2f;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin: 5px 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message.user1 {
+            align-items: flex-start;
+        }
+
+        .message.user2 {
+            align-items: flex-end;
+        }
+
+        .message-content {
+            border-radius: 10px;
+            padding: 6px 10px; /* Reduced padding for smaller boxes */
+            max-width: 70%; /* Adjusted width for better fit */
+            word-wrap: break-word;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Added shadow for depth */
+        }
+
+        .message.user1 .message-content {
+            background-color: #ff4d4d;
+            color: white;
+        }
+
+        .message.user2 .message-content {
+            background-color: #007aff;
+            color: white;
+        }
+
+        .username {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        button {
+            background-color: #555;
+            color: #e0e0e0;
+            padding: 8px; /* Smaller padding */
+            margin-top: 5px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+            font-size: 14px; /* Smaller font size */
+        }
+
+        button:hover {
+            background-color: #666;
+        }
+
+        .emoji-buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 5px;
+        }
+
+        .emoji {
+            font-size: 20px; /* Smaller emoji size */
+            cursor: pointer;
+        }
+
+        input[type="text"] {
+            padding: 8px; /* Smaller input padding */
+            margin-top: 5px;
+            border: none;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 24px;
+            }
+            button {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-screen">
+        <div class="header">
+            <h1>Chat</h1>
+        </div>
+        <div class="chat-container" id="chatContainer"></div>
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button id="sendMessageButton">Send</button>
+        <button id="endChatButton">End Chat</button>
+        <button onclick="location.href='/'">Back to Home</button>
+
+        <div id="reviewContainer" style="display:none;">
+            <h2>Rate Your Experience</h2>
+            <p>How did you feel after this chat?</p>
+            <div class="emoji-buttons">
+                <span class="emoji" id="happy">&#128512;</span>
+                <span class="emoji" id="neutral">&#128528;</span>
+                <span class="emoji" id="sad">&#128577;</span>
+            </div>
+            <textarea id="reviewText" placeholder="Additional comments..." style="width: 100%;"></textarea>
+            <button id="submitReviewButton">Submit Review</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();  // Initialize Socket.IO
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendMessageButton = document.getElementById('sendMessageButton');
+        const endChatButton = document.getElementById('endChatButton');
+        const reviewContainer = document.getElementById('reviewContainer');
+        const submitReviewButton = document.getElementById('submitReviewButton');
+
+        // Function to get a new username each time
+        const getUsername = () => {
+            let username = prompt("Please enter your username:");
+            while (!username) {
+                username = prompt("Username cannot be empty. Please enter your username:");
+            }
+            return username;
+        };
+
+        // Retrieve username from local storage or prompt for a username
+        let username = getUsername();  // Removed local storage to delete username after each chat
+
+        // Send a message when the button is clicked
+        sendMessageButton.onclick = () => {
+            const message = messageInput.value;
+            if (message.trim() !== '') {
+                // Emit the message to the server
+                socket.emit('send_message', { message, username });
+                messageInput.value = '';  // Clear the input field
+            }
+        };
+
+        // Listen for messages from the server
+        socket.on('receive_message', (data) => {
+            const messageElement = document.createElement('div');
+            const messageClass = (data.username === username) ? 'user2' : 'user1';  // Determine alignment
+            messageElement.className = `message ${messageClass}`;
+            messageElement.innerHTML = `
+                <div class="username">${data.username}</div>
+                <div class="message-content">${data.message}</div>
+            `;
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;  // Auto-scroll
+        });
+
+        // End chat button handler
+        endChatButton.onclick = () => {
+            chatContainer.style.display = "none";  // Hide chat container
+            reviewContainer.style.display = "block";  // Show review container
+        };
+
+        const handleEmojiClick = (emotion) => {
+            const reviewText = document.getElementById('reviewText').value;
+            alert(`You rated your experience as ${emotion} with the comment: ${reviewText}`);
+            reviewContainer.style.display = "none";  // Hide review container
+            window.location.href = '/';  // Redirect to home
+        };
+
+        document.getElementById('happy').onclick = () => handleEmojiClick("Happy 😊");
+        document.getElementById('neutral').onclick = () => handleEmojiClick("Neutral 😐");
+        document.getElementById('sad').onclick = () => handleEmojiClick("Sad 😞");
+
+        submitReviewButton.onclick = () => {
+            handleEmojiClick("Submitted Review");
+        };
+    </script>
+</body>
+</html>
